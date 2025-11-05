@@ -4,6 +4,10 @@ include 'includes/config.php';
 // Fetch latest news
 $sql = "SELECT n.*, c.name as category_name FROM news n JOIN categories c ON n.category_id = c.id ORDER BY n.created_at DESC LIMIT 6";
 $result = $conn->query($sql);
+
+// Fetch top viewed articles for sidebar
+$topViewedSql = "SELECT id, title FROM news ORDER BY views DESC LIMIT 5";
+$topViewedResult = $conn->query($topViewedSql);
 ?>
 
 <!DOCTYPE html>
@@ -132,24 +136,32 @@ $result = $conn->query($sql);
                         <h5 class="mb-0">Popular News</h5>
                     </div>
                     <div class="card-body">
-                        <div class="d-flex mb-3">
-                            <div class="flex-shrink-0">
-                                <div class="bg-secondary" style="width: 80px; height: 80px;"></div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h6 class="mt-0">Breaking News Title</h6>
-                                <small class="text-muted">June 12, 2023</small>
-                            </div>
-                        </div>
-                        <div class="d-flex">
-                            <div class="flex-shrink-0">
-                                <div class="bg-secondary" style="width: 80px; height: 80px;"></div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h6 class="mt-0">Another Popular Article</h6>
-                                <small class="text-muted">June 10, 2023</small>
-                            </div>
-                        </div>
+                        <?php 
+                        // Check if the query was successful and has results
+                        if (isset($topViewedResult) && $topViewedResult !== false && $topViewedResult->num_rows > 0) {
+                            // Reset result pointer
+                            $topViewedResult->data_seek(0);
+                            $count = 0;
+                            while($topRow = $topViewedResult->fetch_assoc()): 
+                                if ($count < 2): // Show only top 2
+                        ?>
+                                    <div class="d-flex mb-3">
+                                        <div class="flex-shrink-0">
+                                            <div class="bg-secondary" style="width: 80px; height: 80px;"></div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mt-0"><?php echo substr($topRow['title'], 0, 30); ?>...</h6>
+                                            <a href="news_detail.php?id=<?php echo $topRow['id']; ?>" class="btn btn-outline-primary btn-sm">Read More</a>
+                                        </div>
+                                    </div>
+                        <?php 
+                                $count++;
+                                endif;
+                            endwhile;
+                        } else {
+                            echo "<p>No popular articles found.</p>";
+                        }
+                        ?>
                     </div>
                 </div>
             </div>

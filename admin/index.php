@@ -34,7 +34,8 @@ $result = $conn->query($sql);
                     <h1 class="h3 mb-0">Fresh News Admin Dashboard</h1>
                 </div>
                 <div class="col-md-6 text-end">
-                    <a href="add_news.php" class="btn btn-success"><i class="fas fa-plus me-2"></i>Add News</a>
+                    <a href="analytics.php" class="btn btn-info"><i class="fas fa-chart-bar me-2"></i>Analytics</a>
+                    <a href="add_news.php" class="btn btn-success ms-2"><i class="fas fa-plus me-2"></i>Add News</a>
                     <a href="logout.php" class="btn btn-outline-light ms-2"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
                 </div>
             </div>

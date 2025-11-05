@@ -1,5 +1,11 @@
 # Fresh News Website - HanyaJasa.Com - hanyajasa@gmail.com
 
+```
+git add .
+git commit -m "Commit 4 - Qoder Windows 11"
+git push
+```
+
 A modern news website built with PHP and MySQL.
 
 ## Features

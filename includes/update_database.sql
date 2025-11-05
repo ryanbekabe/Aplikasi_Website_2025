@@ -1,0 +1,31 @@
+-- Update script to add new columns and tables for analytics and rating features
+
+-- Add new columns to news table
+ALTER TABLE news 
+ADD COLUMN views INT DEFAULT 0,
+ADD COLUMN rating DECIMAL(3,2) DEFAULT 0.00,
+ADD COLUMN votes INT DEFAULT 0;
+
+-- Create table for user ratings
+CREATE TABLE IF NOT EXISTS user_ratings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    news_id INT NOT NULL,
+    user_ip VARCHAR(45),
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (news_id) REFERENCES news(id) ON DELETE CASCADE
+);
+
+-- Create table for analytics
+CREATE TABLE IF NOT EXISTS analytics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    news_id INT NOT NULL,
+    view_count INT DEFAULT 0,
+    last_viewed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (news_id) REFERENCES news(id) ON DELETE CASCADE
+);
+
+-- Update existing sample data with initial values
+UPDATE news SET views = 25, rating = 4.25, votes = 8 WHERE id = 1;
+UPDATE news SET views = 42, rating = 4.50, votes = 12 WHERE id = 2;
+UPDATE news SET views = 18, rating = 3.75, votes = 6 WHERE id = 3;

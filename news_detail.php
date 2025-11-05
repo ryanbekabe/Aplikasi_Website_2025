@@ -4,7 +4,49 @@ include 'includes/config.php';
 // Get news ID from URL
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
+// Handle rating submission
+if (isset($_POST['rating']) && $id > 0) {
+    $rating = intval($_POST['rating']);
+    
+    // Validate rating
+    if ($rating >= 1 && $rating <= 5) {
+        // Get user IP
+        $user_ip = $_SERVER['REMOTE_ADDR'];
+        
+        // Check if user already rated this article
+        $checkSql = "SELECT id FROM user_ratings WHERE news_id = ? AND user_ip = ?";
+        $checkStmt = $conn->prepare($checkSql);
+        $checkStmt->bind_param("is", $id, $user_ip);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        
+        if ($checkResult->num_rows == 0) {
+            // Insert new rating
+            $insertSql = "INSERT INTO user_ratings (news_id, user_ip, rating) VALUES (?, ?, ?)";
+            $insertStmt = $conn->prepare($insertSql);
+            $insertStmt->bind_param("isi", $id, $user_ip, $rating);
+            $insertStmt->execute();
+            
+            // Update news rating
+            $updateSql = "UPDATE news SET votes = votes + 1, rating = ((rating * (votes) + ?) / (votes + 1)) WHERE id = ?";
+            $updateStmt = $conn->prepare($updateSql);
+            $updateStmt->bind_param("ii", $rating, $id);
+            $updateStmt->execute();
+        }
+    }
+    
+    // Redirect to prevent resubmission
+    header("Location: news_detail.php?id=" . $id);
+    exit();
+}
+
 if ($id > 0) {
+    // Track view
+    $viewSql = "UPDATE news SET views = views + 1 WHERE id = ?";
+    $viewStmt = $conn->prepare($viewSql);
+    $viewStmt->bind_param("i", $id);
+    $viewStmt->execute();
+    
     // Fetch news details
     $sql = "SELECT n.*, c.name as category_name FROM news n JOIN categories c ON n.category_id = c.id WHERE n.id = ?";
     $stmt = $conn->prepare($sql);
@@ -17,6 +59,19 @@ if ($id > 0) {
         header("Location: index.php");
         exit();
     }
+    
+    // Get user's previous rating if exists
+    $user_ip = $_SERVER['REMOTE_ADDR'];
+    $ratingSql = "SELECT rating FROM user_ratings WHERE news_id = ? AND user_ip = ?";
+    $ratingStmt = $conn->prepare($ratingSql);
+    $ratingStmt->bind_param("is", $id, $user_ip);
+    $ratingStmt->execute();
+    $ratingResult = $ratingStmt->get_result();
+    $userRating = $ratingResult->fetch_assoc();
+    
+    // Fetch top rated articles for sidebar
+    $topRatedSql = "SELECT id, title FROM news WHERE votes > 0 ORDER BY rating DESC LIMIT 5";
+    $topRatedResult = $conn->query($topRatedSql);
 } else {
     header("Location: index.php");
     exit();
@@ -96,7 +151,51 @@ if ($id > 0) {
                         <p><?php echo nl2br($news['content']); ?></p>
                     </div>
                     
-                    <div class="social-share mt-5">
+                    <!-- Rating Section -->
+                    <div class="rating-section mt-4 p-3 bg-light rounded">
+                        <h5>Rate this article:</h5>
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <strong>Average Rating:</strong> 
+                                <span class="badge bg-warning text-dark">
+                                    <?php echo number_format($news['rating'], 2); ?>/5.00
+                                    <small>(<?php echo $news['votes']; ?> votes)</small>
+                                </span>
+                            </div>
+                            
+                            <div class="rating-stars">
+                                <?php 
+                                $avgRating = round($news['rating']);
+                                for ($i = 1; $i <= 5; $i++): 
+                                    if ($i <= $avgRating): 
+                                ?>
+                                    <i class="fas fa-star text-warning"></i>
+                                <?php else: ?>
+                                    <i class="far fa-star text-warning"></i>
+                                <?php endif; ?>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <?php if ($userRating): ?>
+                                <p class="text-success">You rated this article: <?php echo $userRating['rating']; ?>/5 stars</p>
+                            <?php else: ?>
+                                <form method="POST" class="d-flex align-items-center">
+                                    <label class="me-2">Your Rating:</label>
+                                    <div class="rating-input">
+                                        <?php for ($i = 1; $i <= 5; $i++): ?>
+                                            <button type="submit" name="rating" value="<?php echo $i; ?>" class="btn btn-outline-warning btn-sm me-1">
+                                                <i class="fas fa-star"></i> <?php echo $i; ?>
+                                            </button>
+                                        <?php endfor; ?>
+                                    </div>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    
+                    <div class="social-share mt-4">
                         <h5>Share this article:</h5>
                         <div class="d-flex gap-3">
                             <a href="#" class="btn btn-primary"><i class="fab fa-facebook-f me-2"></i> Facebook</a>
@@ -132,27 +231,28 @@ if ($id > 0) {
 
                 <div class="card">
                     <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Related News</h5>
+                        <h5 class="mb-0">Top Rated Articles</h5>
                     </div>
                     <div class="card-body">
-                        <div class="d-flex mb-3">
-                            <div class="flex-shrink-0">
-                                <div class="bg-secondary" style="width: 80px; height: 80px;"></div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h6 class="mt-0">Related News Title</h6>
-                                <small class="text-muted">June 12, 2023</small>
-                            </div>
-                        </div>
-                        <div class="d-flex">
-                            <div class="flex-shrink-0">
-                                <div class="bg-secondary" style="width: 80px; height: 80px;"></div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h6 class="mt-0">Another Related Article</h6>
-                                <small class="text-muted">June 10, 2023</small>
-                            </div>
-                        </div>
+                        <?php if (isset($topRatedResult) && $topRatedResult->num_rows > 0): ?>
+                            <?php $count = 0; ?>
+                            <?php while($topRow = $topRatedResult->fetch_assoc()): ?>
+                                <?php if ($topRow['id'] != $id && $count < 2): // Exclude current article and show only top 2 ?>
+                                    <div class="d-flex mb-3">
+                                        <div class="flex-shrink-0">
+                                            <div class="bg-secondary" style="width: 80px; height: 80px;"></div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mt-0"><?php echo substr($topRow['title'], 0, 30); ?>...</h6>
+                                            <a href="news_detail.php?id=<?php echo $topRow['id']; ?>" class="btn btn-outline-primary btn-sm">Read More</a>
+                                        </div>
+                                    </div>
+                                    <?php $count++; ?>
+                                <?php endif; ?>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <p>No top rated articles found.</p>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
